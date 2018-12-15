@@ -169,18 +169,3 @@ ga.iteration_function = report
 
 ga.run(10000)
 
-"""
-# alternate objectives
-traindataset = MNIST('./data', train=True, transform=img_transform, download=True)
-traindataset1 = list(traindataset)[0:1]
-traindataloader1 = DataLoader(traindataset1, batch_size=batch_size, shuffle=False)
-traindataset = MNIST('./data', train=True, transform=img_transform, download=True)
-traindataset2 = list(traindataset)[1:2]
-traindataloader2 = DataLoader(traindataset2, batch_size=batch_size, shuffle=False)
-for i in range(10000):
-    traindataloader = traindataloader1
-    ga.run(100)
-    traindataloader = traindataloader2
-    ga.run(100)
-"""
-
