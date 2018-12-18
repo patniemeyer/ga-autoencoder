@@ -105,17 +105,17 @@ def mutate_weight(weight: torch.Tensor):
         [x for x in [1, 1, 1, 1, 10, 10, 100, 1000, 10000, 100000, 1000000] if x < length])
     per_gene_mutation_rate = target_gene_mutation_count / length
 
-    type = random.choice(['weighted_offset', 'offset'])
-    if type == 'weighted_offset':
+    type = random.choice(['scale', 'offset'])
+    if type == 'scale':
         if target_gene_mutation_count <= 10:  # a bit faster for small mutations
             for _ in range(target_gene_mutation_count):
                 i=random.randint(0,length-1)
-                weight.view(-1)[i] += (random.random()-0.5) * weight.view(-1)[i]
+                weight.view(-1)[i] *= (random.random()+0.5)  # [0.5, 1,5]
         else:
             maskrand = torch.rand_like(weight)
             mask = maskrand.lt(per_gene_mutation_rate).float()
-            rand = torch.rand_like(weight)-0.5  # [-0.5,0.5]
-            weight += rand * mask * weight
+            rand = torch.rand_like(weight)+0.5  # [0.5, 1.5]
+            weight *= rand * mask
 
     elif type == 'offset':
         if target_gene_mutation_count <= 10:
