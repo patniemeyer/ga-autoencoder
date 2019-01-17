@@ -97,12 +97,20 @@ class GeneticAlgorithm(object):
                 key=attrgetter('fitness'), reverse=self.maximise_fitness)
             return members[0]
 
-        self.fitness_function = None
         self.tournament_selection = tournament_selection
         self.two_point_crossover = two_point_crossover
         self.tournament_size = self.population_size // 10
         self.random_selection = random_selection
         self.create_individual = create_individual
+
+        # Supply this or the simple fitness function.
+        # If set, called with an individual and the full population to return the fitness
+        self.population_fitness_function: Callable[[Individual, [Individual]], float] = None
+
+        # Supply this or the full signature population fitness function.
+        # If set, called with an individual's genes list to return the fitness
+        self.fitness_function: Callable[[[]], float] = None
+
         self.crossover_function = crossover
         self.mutate_function = binary_mutate
         self.selection_function = self.tournament_selection
@@ -127,7 +135,10 @@ class GeneticAlgorithm(object):
         the supplied fitness_function.
         """
         for individual in self.current_generation:
-            individual.fitness = self.fitness_function(individual.genes)
+            if self.population_fitness_function is None:
+                individual.fitness = self.fitness_function(individual.genes)
+            else:
+                individual.fitness = self.population_fitness_function(individual, self.current_generation)
 
     def rank_population(self):
         """Sort the population by fitness according to the order defined by
@@ -201,7 +212,6 @@ class GeneticAlgorithm(object):
                 self.iteration_function(self, i)
             if self.termination_function and self.termination_function(self):
                 break
-
 
     def best_individual(self) -> Individual:
         """Return the individual with the best fitness in the current
