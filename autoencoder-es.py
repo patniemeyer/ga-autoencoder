@@ -9,9 +9,7 @@ from itertools import chain
 import numpy as np
 
 if torch.cuda.is_available(): torch.set_default_tensor_type('torch.cuda.FloatTensor')
-# np.random.seed(42)
 if not os.path.exists('./out/'): os.mkdir('./out/')
-# os.system('open ./out');  # exit()
 f = open('loss.txt', 'w'); f.truncate(); f.close()
 
 # e.g. [128,784]->[128,28,28], [-1,1] to [0,1]
@@ -71,10 +69,6 @@ class autoencoder(nn.Module):
 
 
 def fitness(weights, save=False):
-    # Testing
-    # loss = criterion(weights[0], weight_target[0]) + criterion(weights[1], weight_target[1])
-    # return loss.item()
-
     model.setWeights(weights)
     epochloss = 0
     for batch in traindataloader:
@@ -111,11 +105,7 @@ model = autoencoder()
 if torch.cuda.is_available(): model.cuda()
 criterion = nn.MSELoss(reduction='sum')
 weight_start = list(model.getWeights())
-# Testing
-# weight_target = [torch.Tensor([0.5,0.7,0.9]), torch.Tensor([0.1,0.2,0.3])]
-# weight_start = [torch.Tensor([0.1,0.2,0.3]), torch.Tensor([0.3,0.4,0.5])]
 
-# hyperparams
 npop = 25  # population size [25]
 sigma = 1e-3  # noise standard deviation [1e-3]
 alpha = 0.01 # learning rate [0.01]
