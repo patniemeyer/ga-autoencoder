@@ -49,26 +49,17 @@ class autoencoder(nn.Module):
         return x
 
     # Return the weights and biases
-    def getWeights(self)->[torch.Tensor]:
+    def getWeights(self) -> [torch.Tensor]:
         for module in chain(self.encoder.modules(), self.decoder.modules()):
-            if hasattr(module, 'weight'):
-                yield module.weight.data
-                yield module.bias.data
+            for param in module.parameters():
+                yield param.data
 
     # Set weights and biases from the list
     def setWeights(self, weights: [torch.Tensor]):
-        def chunker(seq, size):
-            return (seq[pos:pos + size] for pos in range(0, len(seq), size))
-        weight_bias_pairs=chunker(weights,2)
+        weight_data = iter(weights)
         for module in chain(self.encoder.modules(), self.decoder.modules()):
-            if hasattr(module, 'weight'):
-                module.weight.data, module.bias.data = next(weight_bias_pairs)
-
-    def getGrad(self)->[torch.Tensor]:
-        for module in chain(self.encoder.modules(), self.decoder.modules()):
-            if hasattr(module, 'weight'):
-                yield module.weight.grad
-                yield module.bias.grad
+            for param in module.parameters():
+                param.data = next(weight_data)
 
 
 def fitness(weights, save=False):
