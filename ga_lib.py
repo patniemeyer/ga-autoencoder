@@ -8,6 +8,7 @@ import random
 import copy
 from operator import attrgetter
 from typing import Callable
+import numpy as np
 
 class Individual(object):
     """ class that encapsulates an individual's fitness and solution representation.
@@ -44,11 +45,11 @@ class GeneticAlgorithm(object):
 
         self.current_generation: [Individual] = []  # ranked individuals
 
-        def create_individual()->[]:
+        def create_individual()->Individual:
             """Create a candidate solution representation.
             :returns: candidate solution representation as a list
             """
-            return []
+            return Individual([])
 
         def crossover(parent_1: [], parent_2: [])->([], []):
             """Crossover (mate) two parents to produce two children.
@@ -77,10 +78,11 @@ class GeneticAlgorithm(object):
             ind2[cxpoint1:cxpoint2] = ind1_chunk
             return ind1, ind2
 
-        def binary_mutate(individual):
+        def binary_mutate(individual: Individual):
             """Reverse the bit of a random index in an individual."""
-            mutate_index = random.randrange(len(individual))
-            individual[mutate_index] = (0, 1)[individual[mutate_index] == 0]
+            genes = individual.genes
+            mutate_index = random.randrange(len(genes))
+            genes[mutate_index] = (0, 1)[genes[mutate_index] == 0]
 
         def random_selection(population):
             """Select and return a random member of the population."""
@@ -90,16 +92,32 @@ class GeneticAlgorithm(object):
             """Select a random number of individuals from the population and
             return the fittest member of them all.
             """
-            if self.tournament_size == 0:
-                self.tournament_size = 2
+            if self.tournament_size == 0: self.tournament_size = 2
             members = random.sample(population, self.tournament_size)
             members.sort(
                 key=attrgetter('fitness'), reverse=self.maximise_fitness)
             return members[0]
 
+        def elite_selection(population):
+            elite_frac=0.1
+            return random.choice(population[0:int(len(population)*elite_frac)])
+
+        # todo: I'm sure this can be faster
+        def roulette_selection(population):
+            if self.maximise_fitness:
+                max = sum([i.fitness for i in population])
+                probs = [c.fitness / max for c in population]
+            else:
+                max = sum([1.0 / i.fitness for i in population])
+                probs = [(1.0 / i.fitness) / max for i in population]
+            return population[np.random.choice(len(population), p=probs)]
+
         self.tournament_selection = tournament_selection
+        self.elite_selection = elite_selection
+        self.roulette_selection = roulette_selection
         self.two_point_crossover = two_point_crossover
-        self.tournament_size = self.population_size // 10
+        # self.tournament_size = self.population_size / 10
+        self.tournament_size = 2
         self.random_selection = random_selection
         self.create_individual = create_individual
 
@@ -107,12 +125,12 @@ class GeneticAlgorithm(object):
         # If set, called with an individual and the full population to return the fitness
         self.population_fitness_function: Callable[[Individual, [Individual]], float] = None
 
-        # Supply this or the full signature population fitness function.
-        # If set, called with an individual's genes list to return the fitness
-        self.fitness_function: Callable[[[]], float] = None
+        # Supply this or the full population fitness function.
+        self.fitness_function: Callable[[Individual], float] = None
+
+        self.mutate_function: Callable[[Individual], None] = binary_mutate
 
         self.crossover_function = crossover
-        self.mutate_function = binary_mutate
         self.selection_function = self.tournament_selection
 
         self.termination_function: Callable[[GeneticAlgorithm], bool] = None
@@ -124,19 +142,17 @@ class GeneticAlgorithm(object):
         """
         initial_population = []
         for _ in range(self.population_size):
-            genes = self.create_individual()
-            individual = Individual(genes)
+            individual = self.create_individual()
             initial_population.append(individual)
         self.current_generation = initial_population
 
-    # TODO: delegate and allow us to parallelize
     def calculate_population_fitness(self):
         """Calculate the fitness of every member of the given population using
         the supplied fitness_function.
         """
         for individual in self.current_generation:
             if self.population_fitness_function is None:
-                individual.fitness = self.fitness_function(individual.genes)
+                individual.fitness = self.fitness_function(individual)
             else:
                 individual.fitness = self.population_fitness_function(individual, self.current_generation)
 
@@ -147,7 +163,7 @@ class GeneticAlgorithm(object):
         self.current_generation.sort(
             key=attrgetter('fitness'), reverse=self.maximise_fitness)
 
-    def create_new_population(self):
+    def evolve_population(self):
         """Create a new population using the genetic operators (selection,
         crossover, and mutation) supplied.
         """
@@ -157,6 +173,7 @@ class GeneticAlgorithm(object):
 
         while len(new_population) < self.population_size:
             # choose pairs of parents using selection function twice
+            # TODO: Copy here is expensive.
             parent_1 = copy.deepcopy(selection(self.current_generation))
             parent_2 = copy.deepcopy(selection(self.current_generation))
 
@@ -164,16 +181,13 @@ class GeneticAlgorithm(object):
             child_1, child_2 = parent_1, parent_2
             child_1.fitness, child_2.fitness = 0, 0
 
-            can_crossover = random.random() < self.crossover_probability
-            can_mutate = random.random() < self.mutation_probability
-
-            if can_crossover:
+            if random.random() < self.crossover_probability:
                 child_1.genes, child_2.genes = self.crossover_function(
                     parent_1.genes, parent_2.genes)
 
-            if can_mutate:
-                self.mutate_function(child_1.genes)
-                self.mutate_function(child_2.genes)
+            if random.random() < self.mutation_probability:
+                self.mutate_function(child_1)
+                self.mutate_function(child_2)
 
             new_population.append(child_1)
             if len(new_population) < self.population_size:
@@ -196,7 +210,7 @@ class GeneticAlgorithm(object):
         """Create subsequent populations, calculate the population fitness and
         rank the population by fitness in the order specified.
         """
-        self.create_new_population()
+        self.evolve_population()
         self.calculate_population_fitness()
         self.rank_population()
 
